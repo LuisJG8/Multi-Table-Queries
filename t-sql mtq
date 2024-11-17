@@ -1,0 +1,514 @@
+USE newww;
+
+
+SELECT Salary, FullName, EmployeeID
+FROM Employees;
+
+
+SELECT TOP(5) FullName, EmployeeID
+FROM Employees;
+
+
+
+SELECT em.FullName, em.Salary
+FROM Employees AS em
+CROSS APPLY Employees AS emp
+WHERE em.FullName = emp.FullName AND em.Salary = emp.Salary
+
+
+SELECT E1.firstname AS firstname1, E1.lastname AS lastname1,
+  E2.firstname AS firstname2, E2.lastname AS lastname2
+FROM HR.Employees AS E1, HR.Employees AS E2;
+
+
+SELECT E1.firstname AS firstname1, E1.lastname AS lastname1,
+	E2.fistname AS firstname2, E2.lastname AS lastname2 
+FROM HR.Employees AS E1
+    CROSS JOIN HR.Employees AS E2;
+
+
+DECLARE @s AS DATE = '20150101', @e AS DATE = '20150131',
+ @numcuts AS INT = 50, @numemps AS INT = 10;
+
+SELECT ROW_NUMBER() OVER(ORDER BY (SELECT NULL)) AS orderid,
+ DATEADD(day, D.n, @s) AS orderdate, C.n AS custid, E.n AS empid
+FROM dbo.GetNums(0, DATEDIFF(day, @s, @e)) AS D
+ CROSS JOIN dbo.GetNums(1, @numcuts) AS C
+ CROSS JOIN dbo.GetNums(1, @numemps) AS E;
+
+
+
+SELECT orderid, val,
+    val / (SELECT SUM(val) FROM Sales.OrderValues) AS pct,
+	val - (SELECT AVG(val) FROM Sales.OrderValues) AS diff
+FROM Sales.OrderValues;
+
+
+
+SELECT orderid, val, val / sumval AS pct, val - avgval AS diff
+FROM Sales.OrderValues
+  CROSS JOIN (SELECT SUM(val) AS sumval, AVG(val) AS avgval
+			  FROM Sales.OrderValues) AS Aggs;
+
+SELECT orderid, val,
+ val / (SELECT SUM(val) FROM Sales.OrdeValues AS I
+		WHERE I.custid = O.custid) AS pct,
+ val - (SELECT AVG(val) FROM Sales.OrderValues AS I
+		WHERE I.custid = O.custid) AS diff
+FROM Sales.OrderValues AS O;
+
+
+SELECT orderid, val,
+  val / sumval AS pct,
+  val - avgval AS diff
+FROM Sales.OrderValues AS O
+  INNER JOIN (SELECT custid, SUM(val) AS sumval, AVG(val) AS avgval
+			  FROM Sales.OrderValues
+			  GROUP BY custid) AS Aggs
+  ON O.custid = Aggs.custid;
+
+
+SELECT C.custid, C.companyname, O.orderid
+FROM Sales.Customers AS C, Sales.Orders AS O
+WHERE C.custid = 0.custid
+  AND C.country = N'USA';
+
+
+--INNER JOIN--
+FROM T1
+ INNER JOIN T2
+	ON T2.col1 = T1.col1
+ INNER JOIN T3
+	ON T3.col2 = T2.col2
+ INNER JOIN T3
+	ON T4.col3 = T3.col3
+
+
+FROM T1, T2, T3, T4
+WHERE T2.col1 = T1.col1 AND T3.col2 = T2.col2 AND T4.col3 = T3.col3;
+
+
+--OUTER JOIN--
+SELECT C.custid, C.companyname, C.country,
+	   O.orderid, O.shipcountry
+FROM Sales.Customers AS C
+	LEFT OUTER JOIN Sales.Orders AS O
+		ON C.custid = O.custid;
+
+
+SELECT C.custid, C.companyname, O.orderid
+FROM Sales.Customers AS C
+	LEFT OUTER JOIN Sales.Orders AS O
+		ON C.custid = O.custid
+WHERE O.orderid IS NULL; 
+
+
+SELECT E.firstname + ' ' + E.lastname AS emp, M.firstname + ' ' + M.lastname AS mgr
+FROM HR.Employees AS E
+	LEFT OUTER JOIN HR.Employees AS M
+		ON E.mgrid = M.empid;
+
+--EQUI AND NON-EQUI JOINS--
+
+--NON-EQUI JOIN--
+SELECT E1.empid, E1.lastname, E1.firstname, E2.empid, E2.lastname, E2.firstname
+FROM HR.Employees AS E1
+  INNER JOIN HR.Employees AS E2
+    ON E1.empid < E2.empid;
+
+
+SELECT DISTINCT C.companyname AS customer, S.companyname AS supplier
+FROM Sales.Customers AS C
+	INNER JOIN Sales.Orders AS O
+	  ON O.custid = C.custid
+	INNER JOIN Sales.OrderDetails AS OD
+	  ON OD.orderid = O.orderid
+	INNER JOIN Production.Products AS P
+	  ON P.productid = OD.productid
+	INNER JOIN Production.Suppliers AS S
+	  ON S.supplierid = P.supplierid;
+
+
+SELECT DISTINCT C.companyname AS customer, S.companyname AS supplier
+FROM Sales.Customers AS C
+ INNER JOIN (Sales.Orders AS O
+			 INNER JOIN (Production.Suppliers AS S
+						 INNER JOIN Production.Products AS P
+						   ON P.supplierid = S.supplierid
+						 INNER JOIN Sales.OrdersDetails AS OD
+						   ON OD.productid = P.productid)
+			 ON OD.orderid = O.orderid)
+ ON O.custid = C.custid;
+
+
+
+SELECT DISTINCT C.companyname AS customer, S.companyname AS supplier
+FROM Sales.Customers AS C
+  INNER JOIN Sales.Orders AS O
+    ON O.custid = C.custid
+  INNER JOIN Sales.OrderDetails AS OD
+    ON OD.orderid = O.orderid
+  INNER JOIN Production.Products AS P
+    ON P.productid = OD.productid
+  INNER JOIN Production.Suppliers AS S
+    ON S.supplierid = P.supplierid
+OPTION (FORCE ORDER)
+
+--Controlling the logical-join evaluation order--
+SELECT DISTINCT C.companyname AS customer, S.companyname AS supplier
+FROM Sales.Customers AS C
+  INNER JOIN Sales.Orders AS O
+    ON O.custid = C.custid
+  INNER JOIN Sales.OrderDetails AS OD
+    ON OD.orderid = O.orderid
+  INNER JOIN Production.Products AS P
+    ON P.productid = OD.productid
+  INNER JOIN Production.Suppliers AS S
+    ON S.supplierid = P.supplierid;
+
+
+SELECT DISTINCT C.companyname AS customer, S.companyname AS supplier
+FROM Sales.Customers AS C
+  LEFT JOIN Sales.Orders AS O
+    ON O.custid = C.custid
+  INNER JOIN Sales.OrderDetails AS OD
+    ON OD.orderid = O.orderid
+  INNER JOIN Production.Products AS P
+    ON P.productid = OD.productid
+  INNER JOIN Production.Suppliers AS S
+    ON S.supplierid = P.supplierid;
+OPTION (FORCE ORDER)
+
+
+
+SELECT DISTINCT C.companyname AS customer, S.companyname AS supplier
+FROM Sales.Customers AS C
+  INNER JOIN Sales.Orders AS O
+    ON O.custid = C.custid
+  INNER JOIN Sales.OrderDetails AS OD
+    ON OD.orderid = O.orderid
+  INNER JOIN Production.Products AS P
+    ON P.productid = OD.productid
+  INNER JOIN Production.Suppliers AS S
+    ON S.supplierid = P.supplierid;
+
+
+
+
+SELECT DISTINCT C.companyname AS customer, S.companyname AS supplier
+FROM Sales.Customers AS C
+  LEFT OUTER JOIN 
+	( Sales.Orders AS O
+		INNER JOIN Sales.OrderDetails AS OD
+		 ON OD.orderid = O.orderid
+		INNER JOIN Production.Products AS P
+		 ON P.productid = OD.productid
+		INNER JOIN Production.Suppliers AS S
+		 ON S.supplierid = P.supplierid)
+   ON O.custid = C.custid;
+
+
+SELECT DISTINCT C.companyname AS customer, S.companyname AS supplier
+FROM Sales.Customers AS C
+ INNER JOIN 
+		  (Sales.Orders AS O INNER JOIN Sales.OrderDetails AS OD
+		    ON OD.orderid = O.orderid)
+		INNER JOIN
+		  (Production.Products AS P INNER JOIN Production.Suppliers AS S
+		    ON S.supplierid = P.supplierid)
+		ON P.supplierid = OD.productid
+ ON O.custid = C.custid
+OPTION (FORCE ORDER);
+
+
+--semi join--
+SELECT DISTINCT C.custid, C.companynmae
+FROM Sales.Customers AS C
+ INNER JOIN Sales.Orders AS O
+  ON O.custid = C.custid;
+
+  
+SELECT custid, companyname
+FROM Sales.Customers AS C
+WHERE EXISTS(SELECT *
+			 FROM Sales.Orders AS O
+			 WHERE O.custid = C.custid);
+
+--anti semi join--
+SELECT C.custid, C.companyname
+FROM Sales.Customers AS C
+  LEFT OUTER JOIN Sales.Orders AS O
+    ON O.custid = C.custid
+WHERE O.orderid IS NULL;
+
+SELECT custid, companyname
+FROM Sales.Customers AS C
+WHERE NOT EXISTS(SELECT *
+				 FROM Sales.Orders AS O
+				 WHERE O.custid = C.custid);
+
+
+
+--join algorithms--
+
+
+--nested loops--
+
+USE PerformanceV3;
+
+SELECT C.custid, C.custname, O.orderid, O.empid, O.shipperid, O.orderdate
+FROM dbo.Customers AS C
+  INNER JOIN dbo.Orders AS O
+    ON O.custid = C.custid
+WHERE C.custname LIKE 'Cust_1000%'
+  AND O.orderdate >= '20140101'
+  AND O.orderdate < '201400401'
+
+
+SELECT orderid, empid, shipperid, orderdate
+FROM dbo.Orders
+WHERE custid = X
+  AND orderdate >= '20140101'
+  AND orderdate < '20140401'
+
+
+CREATE INDEX idx_nc_cn_i_cid ON dbo.Customers(custname) INCLUDE(custid);
+
+CREATE INDEX idx_nc_cid_od_i_oid_eid_sid
+  ON dbo.Orders(custid, orderdate) INCLUDE(orderid, empid, shipperid);
+
+
+SELECT C.custid, C.custname, O.orderid, O.empid, O.shipperid, O.orderdate
+FROM dbo.Customers AS C
+  INNER JOIN dbo.Orders AS O
+   ON O.custid = C.custid;
+
+
+
+DROP INDEX idx_nc_cn_i_cid ON dbo.Customers;
+DROP INDEX idx_nc_cid_od_i_oid_eid_sid ON dbo.Orders;
+
+
+SELECT C.custid, C.custname, O.orderid, O.orderid, O.empid, O.shipperid, O.orderdate
+FROM dbo.Customers AS C
+  INNER JOIN dbo.Orders AS O
+    ON O.custid = C.custid
+WHERE C.custname LIKE 'Cust_1000%'
+  AND O.orderdate >= '20140101'
+  AND O.orderdate < '20140101';
+
+
+SELECT num1
+FROM table
+WHERE exists (select * from other_table where thing.table = thing.other_table)
+
+SELECT num1
+FROM table
+WHERE NOT EXISTS (select * from other_table where thing
+
+
+--Forcing join strategy--
+SELECT C.custid, C.custname, O.orderid, O.empid, O.shipperid, O.orderdate
+FROM dbo.Customers AS C
+  INNER LOOP JOIN dbo.Orders AS O
+    ON O.custid = C.custid;
+
+
+SELECT C.custid, C.custname, O.orderid, O.empid, O.shipperid, O.orderdate
+FROM dbo.Customers AS C
+  INNER JOIN dbo.Orders AS O
+    ON O.custid = C.custid
+(OPTION(LOOP JOIN, HASH JOIN)
+
+
+--Separating elements--
+SET NOCOUNT ON;
+USE tempdb;
+
+IF OBJECT_ID(N'dbo.Arrays', N'U') IS NOT NULL DROP TABLE dbo.Arrays;
+
+CREATE TABLE dbo.Arrays
+(
+ id  VARCHAR(10) NOT NULL PRIMARY KEY,
+ arr VARCHAR(8000) NOT NULL
+);
+GO
+
+INSERT INTO dbo.Arrays VALUES('A', '20,223,2544,25567,14');
+INSERT INTO dbo.Arrays VALUES('B', '30,-23433,28');
+INSERT INTO dbo.Arrays VALUES('C', '12,10,8099,12,1200,13,12,14,10,9');
+INSERT INTO dbo.Arrays VALUES('D', '-4,-6,-45678,-2');
+
+
+SELECT *
+FROM dbo.Arrays
+
+SELECT arr
+FROM Arrays
+WHERE id = 'A';
+
+
+SELECT id, arr, n
+FROM dbo.Arrays
+  INNER JOIN TSQLV3.dbo.Nums
+  ON n <= LEN(arr) + 1
+    AND SUBSTRING(',' + arr, n, 1) = ',';
+
+SELECT id,
+          ROW_NUMBER() OVER(PARTITION BY id ORDER BY n) AS pos,
+		  SUBSTRING(arr, n, CHARINDEX(',', arr + ',', n) - n) AS element
+FROM dbo.Arrays
+  INNER JOIN TSQLV3.dbo.Nums
+    ON n <= LEN(arr) + 1
+	  AND SUBSTRING(',' + arr, n, 1) = ',';
+
+
+CREATE FUNCTION dbo.Split(@arr AS VARCHAR(8000), @sep AS CHAR(1)) RETURNS TABLE
+AS 
+RETURN
+	SELECT 
+	  ROW_NUMBER() OVER(ORDER BY n) AS pos,
+	  SUBSTRING(@arr, n, CHARINDEX(@sep, @arr + @sep, n) - n) AS element
+	FROM TSQLV3.dbo.Nums
+	WHERE n <= LEN(@arr) + 1
+		AND SUBSTRING(@sep + @arr, n, 1) = @sep;
+GO
+
+SELECT * FROM dbo.Split('10248, 10249, 10250', ',') AS S;
+
+SELECT O.orderid, O.orderdate, O.custid, O.empid
+FROM dbo.Split('10248,10249,10259', ',') AS S
+  INNER JOIN TSQLV3.Orders AS O
+    ON O.orderid = S..element
+ORDER BY S.pos;
+
+
+
+--UNION AND UNION ALL--
+USE TSQLV3;
+
+SELECT country, region, city 
+FROM HR.Employees
+UNION
+SELECT country, region, city
+FROM Sales.Customers;
+
+
+SELECT country, region, city 
+FROM HR.Employees
+UNION ALL
+SELECT country, region, city
+FROM Sales.Customers;
+
+
+USE newww;
+
+SELECT Salary, FullName
+FROM Employees
+
+
+UNION 
+
+SELECT DeptID, CAST(ManagerID AS NVARCHAR)
+FROM Employee;
+
+
+USE tempdb;
+IF OBJECT_ID(N'dbo.T2014', N'U') IS NOT NULL DROP TABLE dbo.T2014;
+IF OBJECT_ID(N'dbo.T2015', N'U') IS NOT NULL DROP TABLE dbo.T2015;
+GO
+
+ALTER TABLE dbo.T2014
+ALTER COLUMN dt INT
+
+CREATE TABLE dbo.T2015
+(
+ keycol INT NOT NULL CONSTRAINT PK_T2015 PRIMARY KEY,
+ dt DATE NOT NULL CONSTRAINT CHK_T2015_dt CHECK(dt >= '20150101' AND dt < '20160101')
+);
+
+
+SELECT keycol, cast(dt as int) FROM dbo.T2014
+UNION
+SELECT keycol, CAST(dt AS INT) FROM dbo.T2015
+
+
+
+IF OBJECT_ID(N'dbo.T2014', N'U') IS NOT NULL DROP TABLE dbo.T2014;
+IF OBJECT_ID(N'dbo.T2015', N'U') IS NOT NULL DROP TABLE dbo.T2015;
+
+--INTERSECT--
+USE TSQLV3;
+
+SELECT country, region, city
+FROM HR.Employees
+INTERSECT
+SELECT country, region, city 
+FROM Sales.Customers;
+
+
+
+E.region = C.region OR E.region IS NULL AND C.region IS NULL;
+
+--CREATING INTERSECT_ALL THAT IS SUPPORTED BY SQL BUT NOT BY T-SQL
+WITH INTERSECT_ALL
+AS
+(
+ SELECT
+    ROW_NUMBER()
+		OVER(PARTITION BY country, region, city
+				 ORDER BY (SELECT 0)) AS rn,
+	country, region, city
+ FROM Sales.Customers
+
+ INTERSECT 
+
+ SELECT
+   ROW_NUMBER()
+     OVER(PARTITION BY country, region, city
+			  ORDER BY (SELECT 0)) AS rn,
+  country, region, city
+ FROM Sales.Customers
+)
+SELECT country, region, city
+FROM INTERSECT_ALL
+
+
+--EXCEPT--
+SELECT country, region, city 
+FROM HR.Employees
+
+EXCEPT 
+
+SELECT country, region, city
+FROM HR.Customers;
+
+
+WITH EXCEPT_ALL
+AS
+(
+ SELECT
+   ROW_NUMBER()
+     OVER(PARTITION BY country, region, city
+		  ORDER     BY (SELECT 0)) AS rn,
+   country, region, city
+ FROM HR.Employees
+
+ EXCEPT
+
+ SELECT
+   ROW_NUMBER()
+     OVER(PARTITION BY country, region, city
+	      ORDER     BY (SELECT 0)) AS rn
+   country, region, city
+ FROM Sales.Customers
+)
+SELECT country, region, city
+FROM EXCEPT_ALL
+
+
+SELECT TOP (1) missingval
+FROM (SELECT col1 + 1 AS missignval FROM dbo.T1
+	  EXCEPT
+	  SELECT col1 FROM dbo.T1) AS D
+ORDER BY missignval;
